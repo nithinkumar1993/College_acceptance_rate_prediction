@@ -1,0 +1,316 @@
+---
+title: "A Statistical approach for College acceptance rate prediction"
+author: "Nithin Kumar Nukala"
+date: "05/05/2020"
+output: 
+  word_document:
+    reference_docx: ref.docx
+    toc: yes
+bibliography: bibtex.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+```
+
+\newpage
+# 1. Introduction
+
+In this report we will be working on overseas university admission data. There are many factors like GRE scores, TOEFL scores, CGPA and others that affect the admission rate for a university. We will work on the data analysis and to understand the data to apply linear multiple regression algorithm.
+
+
+# 2. Research Question
+The main objective of this project is to discuss
+
+* To what extent we can predict one's chances of admission into the university?
+* If there are any prominent significant factors that help with admission and what are they?
+
+# 3. Rationale and Scope of our analysis
+
+With the increase demand of students wanting to study in overseas university and we took this as an opportunity to help students by taking their scores and predicting their chance of admission. Further this would help the students to choose the university which would in turn increase the rate of acceptance.
+
+# 4. Dataset
+
+This dataset is structured to forecast Student Admissions Rate. It contains 500 observations in total. Dataset is collected from kaggle  @RN1.
+
+The parameters included are :
+
+*	GRE Scores ( out of 340 )
+*	TOEFL Scores ( out of 120 )
+*	University Rating ( out of 5 )
+*	SOP ( out of 5 )
+* LOR ( out of 5 )
+*	CGPA ( out of 10 )
+*	Research ( either 0 or 1 )
+*	Chance of Admit ( ranging from 0 to 1 )
+
+In this our prediction variable is **Chance of Admit**.
+
+Below are the libraries used in our project.
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(PerformanceAnalytics)
+library(corrplot)
+library(caTools)
+library(DAAG)
+library(ggplot2)
+library(tigerstats)
+```
+
+```{r}
+data <- read.csv("clg_admission.csv", header = TRUE) # Reading data from the csv file
+```
+
+```{r}
+str(data) # Get the structure of the dataframe
+```
+
+```{r}
+summary(data) # this gives the summary of all the columns(parameters) in the dataset
+```
+
+```{r}
+sum(is.na(data)) #get sum of null values exists in our data
+```
+We can see that we dont have any null values in our dataset.
+
+```{r} 
+# Dropping 1st column which is not used in our prediction model
+data <- data[ -1 ]
+```
+
+# 5. Analysis:
+
+In this we analyse the corelation between the parametes and check the distribution of significant parameters. We also check for outliers and understand the regression pattern.
+
+## 5.1 Outliers:
+
+Below graph is to get the outliers for all the variables present in out dataset
+```{r}
+data1 <- data[ -c(1,2) ]
+ggplot(stack(data1),aes(ind,values)) + geom_boxplot()  # gives boxplot for all the columns
+```
+
+```{r}
+data2 <- data[ c(1,2) ]
+ggplot(stack(data2),aes(ind,values)) + geom_boxplot() # gives boxplot for all the columns
+```
+
+From the above graphs we can see that there are no outliers present in the columns. Hence, we can continue with further analysis.
+
+## 5.2 Correlation Matrix:
+```{r fig.width = 10,fig.asp = .62}
+chart.Correlation(data, histogram=T) #display chart of a correlation matrix along with histograms
+```
+
+From the above correlation matrix we can see that GRE_Score,TOEFL_Score and CGPA are most significant independent variables. Hence, we perform individual analysis on these variables.
+
+This is simpler demonstation of above correlation matrix for easier understanding.
+
+```{r}
+
+corr <- cor(data)
+corrplot(corr,method = 'pie')
+```
+
+
+## 5.3 Distribution Analysis:
+```{r}
+hist(data$GRE_Score) # Gives histogram for GRE_Score column
+```
+
+We see normal distribution from the above histogram and most of the results lies between 310 to 325.
+
+
+```{r message=FALSE, warning=FALSE}
+ggplot(data,aes(x=GRE_Score,y=Chance_of_Admit))+geom_point()+geom_smooth()
+```
+
+From the above plot we also see positive slope with almost no deviation. This indicates normal regression of the variable. Hence we can say that chance_of_admit is directly proportional to GRE_Score.
+
+
+DotPlot is alternative graph for checking the distribution of the values in the column. From the below plot we can see that the TOEFL_Score column is normally distributed.
+```{r}
+dotPlot(data$TOEFL_Score, main = "DotPlot for TOEFL Score") # gives dotplot for the column
+```
+```{r}
+ggplot(data,aes(x=TOEFL_Score,y=Chance_of_Admit))+geom_point()+geom_smooth()
+```
+From the above plot we also see positive slope with almost no deviation. This indicates normal regression of the variable. Hence we can say that chance_of_admit is directly proportional to TOEFL_Score.
+
+
+Another alternative to DotPlot and histogram is density plot for checking the distribution of the values in the column. From the below plot we can see that the CGPA column is normally distributed with more values lies at 8.5.
+```{r}
+densityplot(~data$CGPA,plot.points=FALSE) # gives density plot for the column
+```
+
+```{r}
+ggplot(data,aes(x=CGPA,y=Chance_of_Admit))+geom_point()+geom_smooth()
+```
+
+From the above plot we also see positive slope with almost no deviation. This indicates normal regression of the variable. Hence we can say that chance_of_admit is directly proportional to CGPA.
+
+Below graph tells us that we need higher GRE_Score to get increase change of admission in top rated universities.
+```{r}
+ggplot(data,aes(x=GRE_Score,y=Chance_of_Admit,col=University_Rating))+geom_point()
+```
+
+# 6. Linear Multiple Regression:
+
+From the below code we are splitting the dataset into train and test sets with 80% and 20% data respectively.
+```{r}
+set.seed(123) # picks randomly from the dataset
+temp <- sample.split(data, SplitRatio = 0.8)   # spliting the data
+train <- subset(data, temp == T)
+test <- subset(data, temp == F)
+```
+
+```{r}
+nrow(train) # gives number of rows
+
+```
+
+
+```{r}
+nrow(test) # gives number of rows
+
+```
+
+```{r}
+str(train) # gets the structure of train dataset
+```
+
+Below code fits the model using all the varible present in the dataset.
+```{r}
+train_lm1 <- lm(Chance_of_Admit ~ ., data = train) # fitting the model with train data
+```
+ 
+From the below code we will get the summary of model that includes significant variables, Residuals, Coefficients, F-statistic, p-value, Multiple R-squared and adjusted R-squared.
+
+```{r}
+# gives the summary of model
+summary(train_lm1)
+```
+From the above summary we can see that we got 81.79% adjusted R-squared which indicates thet the model is good fit. 
+Multiple R-squared will always increase if you add more independent variables. But Adjusted R-squared will decrease if you add an independent variable that doesn’t help the model. This is a good way to determine if an additional variable should even be included in the model. Hence we will create new model with significant variables.
+
+
+ 
+```{r fig.width = 10,fig.asp = .62}
+par(mfrow = c(2,2))
+plot(train_lm1)
+#par(mfrow = c(1,1))
+```
+
+From the above graph, 'residuals vs Fitted' plot shows ours is a better fit model since it is relatively shapeless without clear patterns in the data, and it is symmetrically distributed around the 0 line without particularly large residuals. 'Normal Q-Q' plot is plotted against quantiles, Our plot looks pretty good and indicates normal distribution, as it’s generally in a straight line. 'Scale-Location' plot shows whether our residuals are spread equally along the predictor range and our plot shows uniform variance. 'Residuals vs Leverage' plot helps you identify influential data points on your model. All our data points are below cooks distance line and hence no further investigation is needed.
+
+
+Lets fit another model with only significant variables alone.
+
+```{r}
+train_lm2 <-  lm(Chance_of_Admit ~ GRE_Score + LOR + CGPA  + Research, data = train)
+
+```
+
+```{r}
+summary(train_lm2)
+```
+
+we can see that significant variables did not help our model much. Our Multiple R-squared and Adjusted R-squared both are significantly equal to the previous model. This indicates that this new model is probably better than the previous model in terms of faster performance as only few variables are needed. We now compute the sum of squared errors and confidence intervals for this new model.
+
+```{r}
+confint(train_lm2)
+```
+
+Our model has a small confidence interval, which means it is a good model.
+
+## 6.1 Model Evaluation:
+
+Let us now find the accuracy of the model.
+```{r}
+predictTest <- predict(train_lm2, newdata = test) # gives predicted values from the test dataset
+head(predictTest)
+```
+
+
+```{r}
+SSE <-  sum((test$Chance_of_Admit - predictTest)^2)
+
+SST <-  sum((test$Chance_of_Admit - mean(data$Chance_of_Admit))^2)
+
+test_set_Rsquared <- 1 - SSE/SST
+test_set_Rsquared
+```
+A good model should have less sum of squared errors. we can see that the sum of squared errors for train_lm2 model is 0.8, which tells that model is really good with vely less margin error.
+
+
+```{r}
+AIC (train_lm2) # Calculate akaike information criterion
+```
+AIC is used to asses the quality of model and a lower value indicated a good model. For our model we got AIC as -1036, which indicated a good model.
+
+
+```{r}
+# create dataframe with actual values and predicted values
+preds <- data.frame(cbind(actuals = test$Chance_of_Admit,predicteds = predictTest))
+```
+
+
+Below formula is used to get the accuracy and Mean absolute percentage error of the model.
+```{r}
+accuracy <- mean(apply(preds, 1, min) / apply(preds, 1, max))
+#0.9363424
+mape <- mean(abs((preds$predicteds - preds$actuals))/preds$actuals) 
+#0.07117364
+```
+
+```{r}
+accuracy
+```
+We got 93.6% accuracy for our model
+```{r}
+mape
+```
+Mean absolute percentage error of the model is 7%. This indicates that our model is less likely to predict wrong value.
+
+# 7. k- Fold Cross validation
+
+It is necessary to check the performance of the model as thoroughly as possible. One approach is to build the model using subset of training data and predict on the remaining data. This can be made possible using K-Fold cross validation, in which it will take k(here we took 5) samples and test the model.
+```{r fig.width = 10,fig.asp=.62}
+# perform k- Fold Cross validation with k values as 5
+cvResults <- suppressWarnings(CVlm(data=data, form.lm=Chance_of_Admit ~ GRE_Score + LOR + CGPA  + Research, m=5, dots=FALSE, seed=123, legend.pos="topleft",  printit=FALSE, main="Small symbols are predicted values while bigger ones are actuals."))
+
+```
+
+```{r}
+attr(cvResults, 'ms') 
+```
+
+A good model will have lower k-fold cross validation result and each fold should be parallel and as close to each other as possible. we achieved 0.0037 which tells that our model is a good fit.
+
+# 8. Conlusion:
+
+We can answer our research question that we can predict the chance of admission into the overseas university and our model is able to predict with 94% accuracy. Also better scores in these GRE_Score, LOR, CGPA and Research significant factors helps increase the chances of admission. 
+
+STATISTIC                       | CRITERION                          | MODEL RESULT
+--------------------------------|------------------------------------|------------------------  
+test_set_Rsquared               | Closer to 1 the better             | 0.809
+Adj R-Squared                   | Closer to 1 the better             | 0.815
+F-Statistic                     | Higher the better                  | 415
+AIC                             | Lower the better                   | -1036.95
+MAPE                            | Lower the better                   | 7%
+Accuracy                        | Higher the better                  | 93.6%
+K-Fold value                    | Closer to 0 the better             | 0.0037
+
+The above table specifies that our model is satisfies the criteria of a good model. The only limitation is the size of the dataset for the model. We need bigger dataset for the better fit for the model.
+
+In the future this kind of similar model can be used for hiring process that helps in increasing the chances of getting hired.
+
+
+# 9. References
+
